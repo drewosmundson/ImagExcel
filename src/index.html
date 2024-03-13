@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- This meta tag ensures the website renders correctly on mobile devices and supports zooming -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Description Generator</title>
+    <!-- External CSS file linked for styling the webpage -->
+    <link rel="stylesheet" href="index.css">
+    <!-- Importing the XLSX library from a CDN to handle Excel file operations in JavaScript -->
+    <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <h2 style="text-align: center;">
+        <!-- Field for users to input their API key -->
+        <label for="API key">API Key:</label> 
+        <input id="apiKeyInput" type="text" /> 
+        <!-- Button for users to submit their API key -->
+        <input id="apiKeyButton" type="submit" value="Input API key" onclick="setAPIKey()" />
+        <!-- Visual indicator for API key status -->
+        <span id="apiKeyStatus" style="font-size: 20px;"></span>
+    </h2>
+
+    <div id="uploadContainer">
+        <!-- File upload input allowing multiple file selections -->
+        <input type="file" id="fileUpload" name="fileUpload" multiple><br><br>
+    </div>
+
+    <!-- Container where uploaded image previews will be shown -->
+    <div id="preview"></div>
+
+    <!-- Button to clear the selected images from the preview area -->
+    <input id="clearImagesButton" type="button" value="Clear images" onclick="clearImages()" />
+
+    <div>
+        <fieldset>
+            <legend>Text generation options:</legend>
+            <!-- Radio buttons for users to select how they want the images described -->
+            <div>
+                <input type="radio" id="individual" name="gen" value="individual" checked/>
+                <label for="individual">Describe each image individually</label>
+            </div>
+            <div>
+                <input type="radio" id="group" name="gen" value="group"/>
+                <label for="group">Describe all of the images as a group</label>
+            </div>
+            <div>
+                <input type="radio" id="both" name="gen" value="both" />
+                <label for="both">Both individual and as a group</label>
+            </div>
+        </fieldset>
+    </div>
+
+    <div>
+        <fieldset>
+            <legend>Any additional instructions for AI:</legend>
+            <!-- Text area for users to input any additional instructions for the AI -->
+            <div>
+                <textarea id="textbox" name="textbox" maxlength="150" cols="40" rows="4"></textarea>
+            </div>
+        </fieldset>
+    </div>
+
+    <div>
+        <fieldset>
+            <legend>Export options:</legend>
+            <!-- Radio buttons for users to select the format for exporting descriptions -->
+            <div>
+                <input type="radio" id="Excel" name="File" checked />
+                <label for="Excel">.xlsx (Excel file type)</label>
+            </div>
+            <div>
+                <input type="radio" id="PDF" name="File" />
+                <label for="PDF">.pdf (Document file type)</label>
+            </div>
+        </fieldset>
+    </div>
+    <div>
+        <input type="checkbox" id="lowResOption" name="lowResOption" />
+        <label for="lowResOption">Enable Low Resolution (reduced cost)</label>
+    </div>
+
+    <h2 style="text-align: center;">
+        <!-- Placeholder for displaying the total cost -->
+        <label for="Total cost">Total Cost = $<span id="totalCost">0.00</span></label>
+        <!-- Button to initiate the image description generation process -->
+        <input id="describeImagesButton" type="button" value="Describe images" onclick="describeImages()" />
+    </h2>
+
+    <script>
+        // Storing the API key globally to use in multiple functions
+        let apiKey = '';
+        
+        // Adding an event listener to the file upload input to handle file selection
+        document.getElementById('fileUpload').addEventListener('change', handleFileSelect);
+        // Update total cost whenever the file upload changes or the low-resolution option is toggled
+        document.getElementById('fileUpload').addEventListener('change', updateTotalCost);
+        document.getElementById('lowResOption').addEventListener('change', updateTotalCost);
+
+        // Function to display image previews when files are selected
+        function handleFileSelect(event) {
+            const files = event.target.files; // Accessing the selected files
+            const previewContainer = document.getElementById('preview'); // Container for image previews
+            previewContainer.innerHTML = ''; // Clearing previous previews
+
+            // Looping through each selected file
+            for (const file of files) {
+                const reader = new FileReader(); // Creating a FileReader to read file data
+                reader.onload = function(event) { // Handler for when file reading is complete
+                    const imgElement = document.createElement('img'); // Creating an image element
+                    imgElement.src = event.target.result; // Setting the image source to the file data
+                    imgElement.classList.add('preview-image'); // Adding a class for styling
+                    previewContainer.appendChild(imgElement); // Adding the image to the preview container
+                };
+                reader.readAsDataURL(file); // Reading the file as a data URL to display as an image
+            }
+        }
+
+        // Main function to initiate the description generation process
+        async function describeImages() {
+            const previewImages = document.querySelectorAll('.preview-image'); // Selecting all preview images
+            if (previewImages.length === 0) { // Checking if any images have been uploaded
+                alert("Please upload at least one image.");
+                return;
+            }
+
+            if (!apiKey) { // Checking if an API key has been provided
+                alert("Please input API key.");
+                return;
+            }
+
+            const descriptions = []; // Array to store descriptions
+            for (const image of previewImages) { // Looping through each preview image
+                try {
+                    const description = await generateDescription(image.src); // Generating a description for the image
+                    descriptions.push(description); // Adding the description to the array
+                } catch (error) { // Handling any errors during the generation process
+                    console.error(error);
+                    alert("An error occurred while describing an image.");
+                }
+            }
+    
+            console.log("Generated Descriptions:", descriptions); // Logging the generated descriptions
+            exportDescriptions(descriptions); // Exporting the descriptions
+        }
+
+        // Function to generate a description for a single image
+        async function generateDescription(imageUrl) {
+            const model = "gpt-4-vision-preview"; // Adjust model name as necessary
+            const max_tokens = 1000;
+            // Determine if low resolution option is enabled
+            const detailLevel = document.getElementById('lowResOption').checked ? "low" : "high";
+            const message = { // Adjusting the request structure to include detail level within image_url object
+                role: "user",
+                content: [
+                    { type: "text", text: "Write a paragraph describing what is in the image. Use vivid and descriptive language for a detailed depiction, including any text, objects, and their arrangement. Provide context speculation in at least two sentences, ensuring each sentence is complete before ending."},
+                    { 
+                        type: "image_url", 
+                        image_url: imageUrl,
+                        //detail: detailLevel // Include detail level here
+                    }
+                ],
+            };
+
+            try {
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ model, max_tokens, messages: [message] }), // Removed detailLevel from here since it's included in message
+                });
+
+                const data = await response.json();
+                const description = data.choices && data.choices.length > 0 ? data.choices[0].message.content : "Description not available.";
+                return description;
+            } catch (error) {
+                console.error('Error generating description:', error);
+                throw error;
+            }
+        }
+
+
+        // Function to export the generated descriptions to an Excel file
+        function exportDescriptions(descriptions) {
+            const exportOption = document.querySelector('input[name="File"]:checked').id;
+
+            if (exportOption === 'Excel') {
+                // Existing Excel export logic
+                const ws = XLSX.utils.json_to_sheet(descriptions.map((desc, index) => ({ Image: index + 1, Description: desc })), {header: ["Image", "Description"], skipHeader: true});
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Descriptions");
+                XLSX.writeFile(wb, "ImageDescriptions.xlsx");
+            } else if (exportOption === 'PDF') {
+                // New PDF export logic
+                const doc = new jspdf.jsPDF();
+
+                descriptions.forEach((desc, index) => {
+                    let text = `Image ${index + 1}: ${desc}`;
+                    // Split the description text into lines of a maximum width of 180
+                    let lines = doc.splitTextToSize(text, 180);
+                    doc.text(lines, 10, 10 + (index * 10));
+                    // Add a new page if the text exceeds one page, adjust the condition according to your needs
+                    if ((index + 1) % 25 === 0 && index + 1 < descriptions.length) {
+                        doc.addPage();
+                    }
+                });
+
+                doc.save("ImageDescriptions.pdf");
+            }
+        }
+
+        // Function to clear the image previews from the screen
+        function clearImages() {
+            document.getElementById('preview').innerHTML = ''; // Clearing the inner HTML of the preview container
+        }
+
+        // Function to set and validate the API key provided by the user
+        async function setAPIKey() {
+            apiKey = document.getElementById('apiKeyInput').value; // Retrieving the API key from the input field
+            const apiKeyStatus = document.getElementById('apiKeyStatus'); // Element to display the API key status
+            if (apiKey) { // Checking if the API key is not empty
+                const isValid = await checkAPIKey(apiKey); // Validating the API key
+                if (isValid) { // If the API key is valid
+                    apiKeyStatus.innerText = ' ✓'; 
+                    apiKeyStatus.style.color = '#008A00'; // Changing the color to green
+                } else { // If the API key is invalid
+                    apiKeyStatus.innerText = ' ✕'; 
+                    apiKeyStatus.style.color = '#FF0000'; // Changing the color to red
+                    apiKey = ''; // Clearing the API key
+                }
+            } else {
+                apiKeyStatus.innerText = ''; // Clearing the status text if the API key is empty
+            }
+        }
+
+        // Function to check if the provided API key is valid by making a request to the API
+        async function checkAPIKey(key) {
+            const apiUrl = 'https://api.openai.com/v1/engines'; // API endpoint for checking the key
+
+            try {
+                const response = await fetch(apiUrl, { // Making a GET request to the API
+                    method: 'GET',
+                    headers: { // Setting the Authorization header with the API key
+                        'Authorization': `Bearer ${key}`
+                    }
+                });
+
+                return response.ok; // Returning true if the response status is OK
+            } catch (error) { // Handling any errors during the fetch operation
+                console.error('Error checking API key:', error);
+                return false; // Returning false if an error occurs
+            }
+        }
+        function updateTotalCost() {
+            const costPerImageHighRes = 0.00765; // High-resolution vision task cost per image
+            const costPerImageLowRes = 0.00085; // Low-resolution vision task cost per image
+            const costPerMillionTokens = 10.00; // Cost per 1M tokens for text generation
+            const tokensPerDescription = 800; // Estimated tokens for a 200-word description
+            const costPerDescription = (tokensPerDescription / 1000000) * costPerMillionTokens; // Cost for generating the description
+            
+            const numberOfImages = document.getElementById('fileUpload').files.length;
+            const isLowResEnabled = document.getElementById('lowResOption').checked;
+            const visionCostPerImage = isLowResEnabled ? costPerImageLowRes : costPerImageHighRes;
+            
+            const totalCostVision = numberOfImages * visionCostPerImage;
+            const totalCostDescriptions = numberOfImages * costPerDescription;
+            const totalCost = totalCostVision + totalCostDescriptions;
+
+            document.getElementById('totalCost').innerText = totalCost.toFixed(4);
+        }
+
+        // Update total cost whenever the file upload changes
+    </script>
+</body>
+</html>
