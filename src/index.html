@@ -35,7 +35,7 @@
 
     <div>
         <fieldset>
-            <legend>Text generation options:</legend>
+            <legend>Text generation options: (This currently is not finished. all will be individual) </legend>
             <!-- Radio buttons for users to select how they want the images described -->
             <div>
                 <input type="radio" id="individual" name="gen" value="individual" checked/>
@@ -77,72 +77,114 @@
         </fieldset>
     </div>
     <div>
-        <input type="checkbox" id="lowResOption" name="lowResOption" />
+        <input type="checkbox" id="lowResOption" name="lowResOption" checked />
         <label for="lowResOption">Enable Low Resolution (reduced cost)</label>
     </div>
 
     <h2 style="text-align: center;">
         <!-- Placeholder for displaying the total cost -->
-        <label for="Total cost">Total Cost = $<span id="totalCost">0.00</span></label>
+        <label for="Total cost">Estimated Cost = $<span id="totalCost">0.000</span></label>
         <!-- Button to initiate the image description generation process -->
         <input id="describeImagesButton" type="button" value="Describe images" onclick="describeImages()" />
     </h2>
+        <!-- Loading Overlay -->
+    <div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+            <div class="spinner"></div>
+            <!-- Optional: Add text here if you want -->
+            <p style="text-align: center;">Describing images...</p>
+        </div>
+    </div>
 
     <script>
         // Storing the API key globally to use in multiple functions
         let apiKey = '';
         
+        // Global list to track files that have been added to the preview
+        let processedFiles = new Set();
         // Adding an event listener to the file upload input to handle file selection
         document.getElementById('fileUpload').addEventListener('change', handleFileSelect);
         // Update total cost whenever the file upload changes or the low-resolution option is toggled
         document.getElementById('fileUpload').addEventListener('change', updateTotalCost);
         document.getElementById('lowResOption').addEventListener('change', updateTotalCost);
 
-        // Function to display image previews when files are selected
         function handleFileSelect(event) {
             const files = event.target.files; // Accessing the selected files
             const previewContainer = document.getElementById('preview'); // Container for image previews
-            previewContainer.innerHTML = ''; // Clearing previous previews
+            let fileReadPromises = [];
 
-            // Looping through each selected file
             for (const file of files) {
-                const reader = new FileReader(); // Creating a FileReader to read file data
-                reader.onload = function(event) { // Handler for when file reading is complete
-                    const imgElement = document.createElement('img'); // Creating an image element
-                    imgElement.src = event.target.result; // Setting the image source to the file data
-                    imgElement.classList.add('preview-image'); // Adding a class for styling
-                    previewContainer.appendChild(imgElement); // Adding the image to the preview container
-                };
-                reader.readAsDataURL(file); // Reading the file as a data URL to display as an image
+                const fileIdentifier = file.name + "-" + file.size; // Creating a unique identifier for the file
+
+                if (!processedFiles.has(fileIdentifier)) {
+                    let promise = new Promise((resolve, reject) => {
+                        const reader = new FileReader(); // Creating a FileReader to read file data
+                        reader.onload = function(event) { // Handler for when file reading is complete
+                            const imgElement = document.createElement('img'); // Creating an image element
+                            imgElement.src = event.target.result; // Setting the image source to the file data
+                            imgElement.classList.add('preview-image'); // Adding a class for styling
+                            previewContainer.appendChild(imgElement); // Adding the image to the preview container
+                            processedFiles.add(fileIdentifier); // Adding the file identifier to the set of processed files
+                            resolve(); // Indicate this file is fully processed
+                        };
+                        reader.readAsDataURL(file); // Reading the file as a data URL to display as an image
+                    });
+                    fileReadPromises.push(promise);
+                }
             }
+
+            Promise.all(fileReadPromises).then(() => {
+                updateTotalCost(); // Update the total cost once all files are processed
+            });
         }
 
-        // Main function to initiate the description generation process
         async function describeImages() {
-            const previewImages = document.querySelectorAll('.preview-image'); // Selecting all preview images
-            if (previewImages.length === 0) { // Checking if any images have been uploaded
+            const previewImages = document.querySelectorAll('.preview-image');
+            if (previewImages.length === 0) {
                 alert("Please upload at least one image.");
                 return;
             }
 
-            if (!apiKey) { // Checking if an API key has been provided
+            if (!apiKey) {
                 alert("Please input API key.");
                 return;
             }
+            const describeMode = document.querySelector('input[name="gen"]:checked').value;
+            // Show the loading overlay
+            document.getElementById('loadingOverlay').style.display = 'block';
 
-            const descriptions = []; // Array to store descriptions
-            for (const image of previewImages) { // Looping through each preview image
-                try {
-                    const description = await generateDescription(image.src); // Generating a description for the image
-                    descriptions.push(description); // Adding the description to the array
-                } catch (error) { // Handling any errors during the generation process
-                    console.error(error);
-                    alert("An error occurred while describing an image.");
+            const descriptions = [];
+            if (describeMode === 'individual' || describeMode === 'both') {
+                for (const image of previewImages) {
+                    try {
+                        const description = await generateDescription(image.src);
+                        descriptions.push(description);
+                    } catch (error) {
+                        console.error(error);
+                        alert("An error occurred while describing an image.");
+                        // Hide the loading overlay in case of error
+                        document.getElementById('loadingOverlay').style.display = 'none';
+                        return; // Exit the function
+                    }
                 }
-            }
-    
-            console.log("Generated Descriptions:", descriptions); // Logging the generated descriptions
-            exportDescriptions(descriptions); // Exporting the descriptions
+        }
+          /*  if (describeMode === 'group' || describeMode === 'both') {
+                try {
+                    const groupDescription = await generateGroupDescription(Array.from(previewImages));
+                    console.log("Group Description:", groupDescription);
+                } catch (error) {
+                    console.error(error);
+                    alert("An error occurred while generating group description.");
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    return;
+                }
+                
+        }
+        */
+            // Hide the loading overlay once done
+            document.getElementById('loadingOverlay').style.display = 'none';
+            console.log("Generated Descriptions:", descriptions);
+            exportDescriptions(descriptions);
         }
 
         // Function to generate a description for a single image
@@ -151,14 +193,15 @@
             const max_tokens = 1000;
             // Determine if low resolution option is enabled
             const detailLevel = document.getElementById('lowResOption').checked ? "low" : "high";
+            const additionalInstructions = document.getElementById('textbox').value.trim();
             const message = { // Adjusting the request structure to include detail level within image_url object
                 role: "user",
                 content: [
-                    { type: "text", text: "Write a paragraph describing what is in the image. Use vivid and descriptive language for a detailed depiction, including any text, objects, and their arrangement. Provide context speculation in at least two sentences, ensuring each sentence is complete before ending."},
+                    { type: "text", text: "Write a paragraph describing what is in the image. Use vivid and descriptive language for a detailed depiction, including any text, objects, and their arrangement. Provide context speculation in at least two sentences, ensuring each sentence is complete before ending. " + additionalInstructions},
                     { 
                         type: "image_url", 
-                        image_url: imageUrl,
-                        //detail: detailLevel // Include detail level here
+                        image_url:imageUrl
+                        // detail level here
                     }
                 ],
             };
@@ -181,6 +224,23 @@
                 throw error;
             }
         }
+        /*
+        // New function to handle group description
+        async function generateGroupDescription(images) {
+            // Depending on your setup, this could involve sending all images to your backend in one request,
+            // or first getting individual descriptions and then summarizing them into one group description.
+            // For demonstration, I'll assume you're sending image URLs to an API that can handle group descriptions.
+
+            const imageUrls = images.map(image => image.src);
+            // Construct the request payload or logic here based on how your API expects to receive the group of images
+            // This is a placeholder for your actual implementation
+
+            const response = // Make the API request here ;
+            const groupDescription = // Extract the group description from the response ;
+            
+            return groupDescription;
+        }
+        */
 
 
         // Function to export the generated descriptions to an Excel file
@@ -196,26 +256,36 @@
             } else if (exportOption === 'PDF') {
                 // New PDF export logic
                 const doc = new jspdf.jsPDF();
+                let yPosition = 10; // Initial y-position for the first text
 
                 descriptions.forEach((desc, index) => {
                     let text = `Image ${index + 1}: ${desc}`;
                     // Split the description text into lines of a maximum width of 180
                     let lines = doc.splitTextToSize(text, 180);
-                    doc.text(lines, 10, 10 + (index * 10));
-                    // Add a new page if the text exceeds one page, adjust the condition according to your needs
-                    if ((index + 1) % 25 === 0 && index + 1 < descriptions.length) {
+                    
+                    // Ensure there's enough space for the current text block, otherwise add a new page
+                    if (yPosition + lines.length * 10 > doc.internal.pageSize.height) {
                         doc.addPage();
+                        yPosition = 10; // Reset y-position for the new page
                     }
+
+                    doc.text(lines, 10, yPosition);
+                    
+                    // Update yPosition for the next text block, adding a 10pt gap between blocks for readability
+                    yPosition += lines.length * 10 + 10;
                 });
+
 
                 doc.save("ImageDescriptions.pdf");
             }
         }
 
-        // Function to clear the image previews from the screen
-        function clearImages() {
-            document.getElementById('preview').innerHTML = ''; // Clearing the inner HTML of the preview container
-        }
+            // Function to clear the image previews from the screen and reset processed files list
+            function clearImages() {
+                document.getElementById('preview').innerHTML = ''; // Clearing the inner HTML of the preview container
+                processedFiles.clear(); // Resetting the list of processed files
+                updateTotalCost();
+            }
 
         // Function to set and validate the API key provided by the user
         async function setAPIKey() {
@@ -261,7 +331,7 @@
             const tokensPerDescription = 800; // Estimated tokens for a 200-word description
             const costPerDescription = (tokensPerDescription / 1000000) * costPerMillionTokens; // Cost for generating the description
             
-            const numberOfImages = document.getElementById('fileUpload').files.length;
+            const numberOfImages = processedFiles.size;
             const isLowResEnabled = document.getElementById('lowResOption').checked;
             const visionCostPerImage = isLowResEnabled ? costPerImageLowRes : costPerImageHighRes;
             
@@ -269,7 +339,7 @@
             const totalCostDescriptions = numberOfImages * costPerDescription;
             const totalCost = totalCostVision + totalCostDescriptions;
 
-            document.getElementById('totalCost').innerText = totalCost.toFixed(4);
+            document.getElementById('totalCost').innerText = totalCost.toFixed(3);
         }
 
         // Update total cost whenever the file upload changes
