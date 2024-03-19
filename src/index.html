@@ -35,11 +35,11 @@
 
     <div>
         <fieldset>
-            <legend>Text generation options: (This currently is not finished. all will be individual) </legend>
+            <legend>Text generation options:  </legend>
             <!-- Radio buttons for users to select how they want the images described -->
             <div>
                 <input type="radio" id="individual" name="gen" value="individual" checked/>
-                <label for="individual">Describe each image individually</label>
+                <label for="individual">Describe each image individualy</label>
             </div>
             <div>
                 <input type="radio" id="group" name="gen" value="group"/>
@@ -83,7 +83,7 @@
 
     <h2 style="text-align: center;">
         <!-- Placeholder for displaying the total cost -->
-        <label for="Total cost">Estimated Cost = $<span id="totalCost">0.000</span></label>
+        <label for="Total cost">Estimated Cost = $<span id="totalCost">0.00</span></label>
         <!-- Button to initiate the image description generation process -->
         <input id="describeImagesButton" type="button" value="Describe images" onclick="describeImages()" />
     </h2>
@@ -92,13 +92,15 @@
         <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
             <div class="spinner"></div>
             <!-- Optional: Add text here if you want -->
-            <p style="text-align: center;">Describing images...</p>
+            
         </div>
     </div>
 
     <script>
         // Storing the API key globally to use in multiple functions
         let apiKey = '';
+
+        let fullImageDatas = [];
         
         // Global list to track files that have been added to the preview
         let processedFiles = new Set();
@@ -153,34 +155,41 @@
             // Show the loading overlay
             document.getElementById('loadingOverlay').style.display = 'block';
 
-            const descriptions = [];
-            if (describeMode === 'individual' || describeMode === 'both') {
-                for (const image of previewImages) {
-                    try {
-                        const description = await generateDescription(image.src);
-                        descriptions.push(description);
-                    } catch (error) {
-                        console.error(error);
-                        alert("An error occurred while describing an image.");
-                        // Hide the loading overlay in case of error
-                        document.getElementById('loadingOverlay').style.display = 'none';
-                        return; // Exit the function
-                    }
-                }
-        }
-          /*  if (describeMode === 'group' || describeMode === 'both') {
+            let descriptions = [];
+    
+            for (const image of previewImages) {
                 try {
-                    const groupDescription = await generateGroupDescription(Array.from(previewImages));
-                    console.log("Group Description:", groupDescription);
+                    const description = await generateDescription(image.src);
+                    descriptions.push(description);
+                } catch (error) {
+                    console.error(error);
+                    alert("An error occurred while describing an image.");
+                    // Hide the loading overlay in case of error
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                    return; // Exit the function
+                }
+            }
+        
+          if (!(describeMode === 'individual')) {
+
+                try {
+                    const groupDescription = await generateGroupDescription(descriptions);
+                    if(describeMode === 'both'){
+                        descriptions.push(groupDescription);
+                    }
+                    else if(describeMode === 'group'){
+                        descriptions = [groupDescription];
+                    }
+                  
                 } catch (error) {
                     console.error(error);
                     alert("An error occurred while generating group description.");
                     document.getElementById('loadingOverlay').style.display = 'none';
                     return;
                 }
-                
-        }
-        */
+            }
+            
+        
             // Hide the loading overlay once done
             document.getElementById('loadingOverlay').style.display = 'none';
             console.log("Generated Descriptions:", descriptions);
@@ -197,7 +206,7 @@
             const message = { // Adjusting the request structure to include detail level within image_url object
                 role: "user",
                 content: [
-                    { type: "text", text: "Write a paragraph describing what is in the image. Use vivid and descriptive language for a detailed depiction, including any text, objects, and their arrangement. Provide context speculation in at least two sentences, ensuring each sentence is complete before ending. " + additionalInstructions},
+                    { type: "text", text: "This whole response should be 100 to 250 words and only one paragraph with no breaks. Write a paragraph describing what is in the image. Use vivid and descriptive language for a detailed depiction, including any text, objects, and their arrangement. Provide context speculation in at least two sentences, ensuring each sentence is complete before ending. " + additionalInstructions},
                     { 
                         type: "image_url", 
                         image_url:imageUrl
@@ -224,28 +233,47 @@
                 throw error;
             }
         }
-        /*
-        // New function to handle group description
-        async function generateGroupDescription(images) {
-            // Depending on your setup, this could involve sending all images to your backend in one request,
-            // or first getting individual descriptions and then summarizing them into one group description.
-            // For demonstration, I'll assume you're sending image URLs to an API that can handle group descriptions.
 
-            const imageUrls = images.map(image => image.src);
-            // Construct the request payload or logic here based on how your API expects to receive the group of images
-            // This is a placeholder for your actual implementation
+        async function generateGroupDescription(descriptions) {
+            const model = "gpt-3.5-turbo-0125"; // Adjust model name as necessary
+            const max_tokens = 1000;
+       
+            // Determine if low resolution option is enabled
+            const detailLevel = document.getElementById('lowResOption').checked ? "low" : "high";
+            const additionalInstructions = document.getElementById('textbox').value.trim();
+            const message = { // Adjusting the request structure to include detail level within image_url object
+                role: "user",
+                content: [
+                    { type: "text", text: "Making sure to begin the response with the words This group. Summerize all of the following image desctiptions in less than 150 words. Find what they might have in common with eachother and speculate on context going into vivid detail. " +  descriptions.join(" ")},
 
-            const response = // Make the API request here ;
-            const groupDescription = // Extract the group description from the response ;
-            
-            return groupDescription;
+                ],
+            };
+
+            try {
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({model, max_tokens, messages: [message] }), // Removed detailLevel from here since it's included in message
+                });
+
+                const data = await response.json();
+                const description = data.choices && data.choices.length > 0 ? data.choices[0].message.content : "Description not available.";
+                return description;
+            } catch (error) {
+                console.error('Error generating description:', error);
+                throw error;
+            }
         }
-        */
 
 
-        // Function to export the generated descriptions to an Excel file
+        // Function to export the generated descriptions to an Excel file or a PDF document
         function exportDescriptions(descriptions) {
             const exportOption = document.querySelector('input[name="File"]:checked').id;
+            const previewImages = document.querySelectorAll('.preview-image');
+
 
             if (exportOption === 'Excel') {
                 // Existing Excel export logic
@@ -253,28 +281,33 @@
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Descriptions");
                 XLSX.writeFile(wb, "ImageDescriptions.xlsx");
-            } else if (exportOption === 'PDF') {
-                // New PDF export logic
-                const doc = new jspdf.jsPDF();
-                let yPosition = 10; // Initial y-position for the first text
 
-                descriptions.forEach((desc, index) => {
-                    let text = `Image ${index + 1}: ${desc}`;
-                    // Split the description text into lines of a maximum width of 180
-                    let lines = doc.splitTextToSize(text, 180);
-                    
-                    // Ensure there's enough space for the current text block, otherwise add a new page
-                    if (yPosition + lines.length * 10 > doc.internal.pageSize.height) {
+            } else if (exportOption === 'PDF') {
+                const doc = new jspdf.jsPDF();
+                let yPosition = 10; // Initial y-position for the first text/image
+                doc.setFontSize(10); // Set the font size for the description text
+                previewImages.forEach((imageElement, index) => {
+                    const imgData = imageElement.src; // Use the src attribute of the image element as the image data
+                    const desc = descriptions[index]; // Get the corresponding description
+
+                    // Ensure there's enough space for the current image and text block, otherwise add a new page
+                    if (yPosition + 30 > doc.internal.pageSize.height) { // Adjust 60 based on your image size
                         doc.addPage();
                         yPosition = 10; // Reset y-position for the new page
                     }
 
-                    doc.text(lines, 10, yPosition);
-                    
-                    // Update yPosition for the next text block, adding a 10pt gap between blocks for readability
-                    yPosition += lines.length * 10 + 10;
-                });
+                    // Adding the image
+                    doc.addImage(imgData, 'JPEG', 10, yPosition, 50, 50); // Adjust dimensions as needed
 
+                    // Adding the description text below the image
+                    const textYPosition = yPosition + 55; // Adjust based on your image height
+                    let lines = doc.splitTextToSize(desc, 180); // Split the description text into lines
+
+                    doc.text(lines, 10, textYPosition);
+
+                    // Update yPosition for the next image and text block, adding a gap for readability
+                    yPosition += 60 + (lines.length * 10); // Adjust 60 based on your image size plus gap
+                });
 
                 doc.save("ImageDescriptions.pdf");
             }
@@ -339,7 +372,7 @@
             const totalCostDescriptions = numberOfImages * costPerDescription;
             const totalCost = totalCostVision + totalCostDescriptions;
 
-            document.getElementById('totalCost').innerText = totalCost.toFixed(3);
+            document.getElementById('totalCost').innerText = totalCost.toFixed(2);
         }
 
         // Update total cost whenever the file upload changes
