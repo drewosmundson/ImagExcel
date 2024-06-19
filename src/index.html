@@ -15,7 +15,6 @@
 <body>
     <div class="left-section">
         <!-- Your current HTML content goes here -->
-
     <h2 style="text-align: left;">
         <!-- Field for users to input their API key -->
         <label for="API key">API Key:</label> 
@@ -25,18 +24,6 @@
         <!-- Visual indicator for API key status -->
         <span id="apiKeyStatus" style="font-size: 20px;"></span>
     </h2>
-
-    <div id="uploadContainer">
-        <!-- File upload input allowing multiple file selections -->
-        <input type="file" id="fileUpload" name="fileUpload" multiple><br><br>
-    </div>
-
-    <!-- Container where uploaded image previews will be shown -->
-    <div id="preview"></div>
-
-    <!-- Button to clear the selected images from the preview area -->
-    <input id="clearImagesButton" type="button" value="Clear images" onclick="clearImages()" />
-
     <div>
         <fieldset>
             <legend>Text generation options:  </legend>
@@ -100,14 +87,22 @@
     <div class="right-section">
         <h2>Lots</h2>
         <!-- Container for lots -->
-        <div id="lotsContainer"></div>
+        <div id="lotsContainer">
+            <!-- Initial fieldset for lot 1 -->
+            <fieldset id="lot1">
+                <legend>lot1 </legend>
+                <!-- Content of the first lot -->
+            </fieldset>
+        </div>
         <!-- Button to create new lots -->
-        <button onclick="createNewLot()">Create New Lot</button>
+        <button id="newLotButton">Create New Lot</button>
+    </div>
     </div>
     <script src="apiKeyManagement.js"></script>
     <script src="imageHandling.js"></script>
     <script src="descriptionGeneration.js"></script>
     <script src="costCalculation.js"></script>
+    <script src="lots.js"></script>
 
 </body>
 </html>
