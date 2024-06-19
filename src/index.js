@@ -1,9 +1,3 @@
-// main entry point of the app 
-// this is auto generated when creating a new electon project
-
-
-
-
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
