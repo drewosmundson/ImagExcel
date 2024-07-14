@@ -2,112 +2,90 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <!-- This meta tag ensures the website renders correctly on mobile devices and supports zooming -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Description Generator</title>
-    <!-- External CSS file linked for styling the webpage -->
+    <title>Image Description Generator with Processing</title>
     <link rel="stylesheet" href="index.css">
-    <!-- Importing the XLSX library from a CDN to handle Excel file operations in JavaScript -->
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
-
 </head>
 <body>
     <div class="left-section">
-        <!-- Your current HTML content goes here -->
-
-    <h2 style="text-align: left;">
-        <!-- Field for users to input their API key -->
-        <label for="API key">API Key:</label> 
-        <input id="apiKeyInput" type="text" /> 
-        <!-- Button for users to submit their API key -->
-        <input id="apiKeyButton" type="submit" value="Input API key" onclick="setAPIKey()" />
-        <!-- Visual indicator for API key status -->
-        <span id="apiKeyStatus" style="font-size: 20px;"></span>
-    </h2>
-
-    <div id="uploadContainer">
-        <!-- File upload input allowing multiple file selections -->
-        <input type="file" id="fileUpload" name="fileUpload" multiple><br><br>
-    </div>
-
-    <!-- Container where uploaded image previews will be shown -->
-    <div id="preview"></div>
-
-    <!-- Button to clear the selected images from the preview area -->
-    <input id="clearImagesButton" type="button" value="Clear images" onclick="clearImages()" />
-
-    <div>
-        <fieldset>
-            <legend>Text generation options:  </legend>
-            <!-- Radio buttons for users to select how they want the images described -->
-            <div>
-                <input type="radio" id="individual" name="gen" value="individual" checked/>
-                <label for="individual">Describe each image individualy</label>
-            </div>
-            <div>
-                <input type="radio" id="group" name="gen" value="group"/>
-                <label for="group">Describe all of the images as a group</label>
-            </div>
-            <div>
-                <input type="radio" id="both" name="gen" value="both" />
-                <label for="both">Both individual and as a group</label>
-            </div>
-        </fieldset>
-    </div>
-
-    <div>
-        <fieldset>
-            <legend>Any additional instructions for AI:</legend>
-            <!-- Text area for users to input any additional instructions for the AI -->
-            <div>
-                <textarea id="textbox" name="textbox" maxlength="150" cols="40" rows="4"></textarea>
-            </div>
-        </fieldset>
-    </div>
-
-    <div>
-        <fieldset>
-            <legend>Export options:</legend>
-            <!-- Radio buttons for users to select the format for exporting descriptions -->
-            <div>
-                <input type="radio" id="Excel" name="File" checked />
-                <label for="Excel">.xlsx (Excel file type)</label>
-            </div>
-            <div>
-                <input type="radio" id="PDF" name="File" />
-                <label for="PDF">.pdf (Document file type)</label>
-            </div>
-        </fieldset>
-    </div>
-
-
-    <h2 style="text-align: left;">
-        <!-- Placeholder for displaying the total cost -->
-        <label for="Total cost">Estimated Cost = $<span id="totalCost">0.00</span></label>
-        <!-- Button to initiate the image description generation process -->
-        <input id="describeImagesButton" type="button" value="Describe images" onclick="describeImages()" />
-    </h2>
-        <!-- Loading Overlay -->
-    <div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
-        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
-            <div class="spinner"></div>
-            <!-- Optional: Add text here if you want -->
-            
+        <h2 style="text-align: left;">
+            <label for="API key">API Key:</label> 
+            <input id="apiKeyInput" type="text" /> 
+            <input id="apiKeyButton" type="submit" value="Input API key" onclick="setAPIKey()" />
+            <span id="apiKeyStatus" style="font-size: 20px;"></span>
+        </h2>
+        <div>
+            <fieldset>
+                <legend>Text generation options:</legend>
+                <div>
+                    <input type="radio" id="individual" name="gen" value="individual" checked/>
+                    <label for="individual">Describe each image individually</label>
+                </div>
+                <div>
+                    <input type="radio" id="group" name="gen" value="group"/>
+                    <label for="group">Describe all of the images as a group</label>
+                </div>
+                <div>
+                    <input type="radio" id="both" name="gen" value="both" />
+                    <label for="both">Both individual and as a group</label>
+                </div>
+            </fieldset>
         </div>
-    </div>
+        <div>
+            <fieldset>
+                <legend>Any additional instructions for AI:</legend>
+                <textarea id="textbox" name="textbox" maxlength="150" cols="40" rows="4"></textarea>
+            </fieldset>
+        </div>
+        <div>
+            <fieldset>
+                <legend>Export options:</legend>
+                <div>
+                    <input type="radio" id="Excel" name="File" checked />
+                    <label for="Excel">.xlsx (Excel file type)</label>
+                </div>
+                <div>
+                    <input type="radio" id="PDF" name="File" />
+                    <label for="PDF">.pdf (Document file type)</label>
+                </div>
+            </fieldset>
+        </div>
+        <h2 style="text-align: left;">
+            <label for="Total cost">Estimated Cost = $<span id="totalCost">0.00</span></label>
+
+            <button id="describeImagesButton">Describe Images</button>
+        </h2>
+        <div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+                <div class="spinner"></div>
+            </div>
+        </div>
     </div>
     <div class="right-section">
         <h2>Lots</h2>
-        <!-- Container for lots -->
-        <div id="lotsContainer"></div>
-        <!-- Button to create new lots -->
-        <button onclick="createNewLot()">Create New Lot</button>
+        <input type="file" id="fileUpload0" multiple />
+        <button id="convert-button">Generate Lots</button>
+        <div id="lotsContainer">
+            <fieldset id="lot1">
+                <legend>Lot 1</legend>
+                <div id="preview1" class="image-preview"></div>
+            </fieldset>
+            <!-- More lots will be dynamically added here -->
+        </div>
+        <button id="newLotButton">Create New Lot</button>
     </div>
-    <script src="apiKeyManagement.js"></script>
-    <script src="imageHandling.js"></script>
-    <script src="descriptionGeneration.js"></script>
-    <script src="costCalculation.js"></script>
-
+    <pre id="json-output" style="white-space: pre-wrap; margin-top: 20px;"></pre>
+    <div id="image-container" style="margin-top: 20px;"></div>
+    <script src="apiKey.js"></script>
+    <script src="jsShell.js"></script>
+    <script src="describe.js"></script>
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            console.error('JavaScript error:', message, 'at', source, 'line', lineno);
+            return false;
+        };
+        </script>
 </body>
 </html>
