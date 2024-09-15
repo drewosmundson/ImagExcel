@@ -12,10 +12,10 @@ def main():
     try:
         data = json.loads(input_data)
         images_data = data.get('imagesData', [])
-        print(f"Received from Electron: {len(images_data)} images", file=sys.stderr)
+    
 
-        processed_images = [[]]  # Initialize with one empty list
-        i = 0
+        processed_images = []  # Initialize with one empty list
+        current_group  = -1
         for image_data in images_data:
             header, encoded = image_data.split(",", 1)
             decoded_image = base64.b64decode(encoded)
@@ -31,12 +31,12 @@ def main():
             processed_image_data = f"data:image/jpeg;base64,{base64.b64encode(buffer).decode()}"
 
             if barcode_detected:
-                i += 1
-                if len(processed_images) <= i:
-                    processed_images.append([])  # Create a new list for new group
-
-            processed_images[i].append({
+                processed_images.append([])
+                current_group += 1
+            else: # remove this else case in order to not skip the barcodes when appending images
+                processed_images[current_group].append({
                 'image': processed_image_data,
+                # We're not including any barcode information here
             })
 
         response = {
@@ -59,10 +59,8 @@ def detect_barcode(image):
 
     # Check if any barcode is detected
     if barcodes:
-        print("Barcode detected!", file=sys.stderr)
         return True
     else:
-        print("No barcode detected.", file=sys.stderr)
         return False
 
 

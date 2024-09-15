@@ -2,6 +2,7 @@
 
 
 document.getElementById('convert-button').addEventListener('click', async () => {
+
     const fileInput = document.querySelectorAll('[id^="fileUpload"]');
     const files = [];
 
@@ -14,6 +15,8 @@ document.getElementById('convert-button').addEventListener('click', async () => 
 
     if (files.length > 0) {
         try {
+            const lotSpinner = document.getElementById('lotSpinner');
+            lotSpinner.style.display = 'inline-block'; // Show spinner
             const imagesDataArray = [];
 
             for (const file of files) {
@@ -22,12 +25,15 @@ document.getElementById('convert-button').addEventListener('click', async () => 
             }
 
             const jsonObject = { imagesData: imagesDataArray };
-            document.getElementById('json-output').textContent = JSON.stringify(jsonObject, null, 2);
+            
             window.ipcRenderer.send('run-python-script', jsonObject);
         } catch (error) {
             console.error('Error reading files:', error);
             alert('Failed to read files');
+        } finally {
+            lotSpinner.style.display = 'none'; // Hide spinner
         }
+        
     } else {
         alert('Please select at least one file');
     }
@@ -54,8 +60,6 @@ function readFileAsDataURL(file) {
 
 window.ipcRenderer.on('python-reply', (event, arg) => {
     console.log('Python replied with JSON:', arg);
-    const outputElement = document.getElementById('json-output');
-    outputElement.innerText = JSON.stringify(arg, null, 2);
 
     const lotsContainer = document.getElementById('lotsContainer');
     

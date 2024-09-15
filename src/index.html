@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="index.css">
     <script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.3.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="left-section">
@@ -17,39 +18,13 @@
             <span id="apiKeyStatus" style="font-size: 20px;"></span>
         </h2>
         <div>
-            <fieldset>
-                <legend>Text generation options:</legend>
-                <div>
-                    <input type="radio" id="individual" name="gen" value="individual" checked/>
-                    <label for="individual">Describe each image individually</label>
-                </div>
-                <div>
-                    <input type="radio" id="group" name="gen" value="group"/>
-                    <label for="group">Describe all of the images as a group</label>
-                </div>
-                <div>
-                    <input type="radio" id="both" name="gen" value="both" />
-                    <label for="both">Both individual and as a group</label>
-                </div>
-            </fieldset>
-        </div>
-        <div>
+            <h2 style="text-align: left;">
+            <label for="templateFile">Excel File Template:</label> 
+            <input type="file" id="templateFile" accept=".xlsx,.xls"></input>
+            </h2>
             <fieldset>
                 <legend>Any additional instructions for AI:</legend>
                 <textarea id="textbox" name="textbox" maxlength="150" cols="40" rows="4"></textarea>
-            </fieldset>
-        </div>
-        <div>
-            <fieldset>
-                <legend>Export options:</legend>
-                <div>
-                    <input type="radio" id="Excel" name="File" checked />
-                    <label for="Excel">.xlsx (Excel file type)</label>
-                </div>
-                <div>
-                    <input type="radio" id="PDF" name="File" />
-                    <label for="PDF">.pdf (Document file type)</label>
-                </div>
             </fieldset>
         </div>
         <h2 style="text-align: left;">
@@ -59,22 +34,20 @@
         </h2>
         <div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
             <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">
-                <div class="spinner"></div>
+                <div id="lotSpinner" class="spinner" style="display: none;"></div>
+                <div id="descriptionSpinner" class="spinner" style="display: none;"></div>
             </div>
         </div>
     </div>
     <div class="right-section">
+        
         <h2>Lots</h2>
         <input type="file" id="fileUpload0" multiple />
         <button id="convert-button">Generate Lots</button>
         <div id="lotsContainer">
-            <fieldset id="lot1">
-                <legend>Lot 1</legend>
-                <div id="preview1" class="image-preview"></div>
-            </fieldset>
+  
             <!-- More lots will be dynamically added here -->
         </div>
-        <button id="newLotButton">Create New Lot</button>
     </div>
     <pre id="json-output" style="white-space: pre-wrap; margin-top: 20px;"></pre>
     <div id="image-container" style="margin-top: 20px;"></div>

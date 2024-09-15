@@ -5,18 +5,18 @@ function collectImagesFromLots() {
     const imagesPerLot = [];
 
     lots.forEach(lot => {
-        const lotImages = [];
+        const lotImage = [];
         const images = lot.querySelectorAll('.preview-image');
         
         images.forEach(img => {
-            lotImages.push({
+            lotImage.push({
                 src: img.src,
                 id: img.id
             });
         });
 
-        if (lotImages.length > 0) {
-            imagesPerLot.push(lotImages);
+        if (lotImage.length > 0) {
+            imagesPerLot.push(lotImage);
         }
     });
 
@@ -25,27 +25,38 @@ function collectImagesFromLots() {
 
 
 document.getElementById('describeImagesButton').addEventListener('click', async () => {
+    const descriptionSpinner = document.getElementById('descriptionSpinner');
+    descriptionSpinner.style.display = 'inline-block'; // Show spinner
+
     if (!apiKey) {
         console.error('API key is not set');
+        descriptionSpinner.style.display = 'none'; // Hide spinner
         alert('Error: API key is not set');
+        return;
+    }
+    const templateFileInput = document.getElementById('templateFile');
+    if (!templateFileInput || !templateFileInput.files[0]) {
+        descriptionSpinner.style.display = 'none'; // Hide spinner
+        alert("No template file selected");
         return;
     }
 
     const allLotImages = collectImagesFromLots();
-    
     if (allLotImages.length === 0) {
         console.error('No photos uploaded');
+        descriptionSpinner.style.display = 'none'; // Hide spinner
         alert('Please upload photos before generating descriptions');
         return;
     }
+    console.log(allLotImages.length)
     const lotDescriptions = [];
-
-
     for (const lotImages of allLotImages) {
+        console.log(lotImages.length)
         const descriptions = [];
         for (const imageData of lotImages) {
-
-          
+            // here there is an error here
+            // all of the disctiptions get generated ont the first loop?? then go through again one at a time
+            
             try {
                 const description = await generateDescription(imageData);
                 descriptions.push(description);
@@ -58,10 +69,11 @@ document.getElementById('describeImagesButton').addEventListener('click', async 
         try {
             const lotDescription = await describeLot(descriptions);
             lotDescriptions.push(lotDescription);
-
         } catch (error) {
             console.error('Error generating lot description:', error);
             lotDescriptions.push('Error generating lot description');
+        } finally { 
+            descriptionSpinner.style.display = 'none'; // Hide spinner
         }
     }
 
@@ -69,13 +81,62 @@ document.getElementById('describeImagesButton').addEventListener('click', async 
 });
 
 async function describeLot(imageDescriptions) {
+
+    const prompt = 
+        "This whole response should be 50 to 100 words and only one paragraph with no breaks." +
+        "write a paragraph about the contents of each index in this array as a group" + 
+        imageDescriptions + 
+        "the first words in this response must be one of these 43 catagory options that corrispond the best to the object being described in the previous text"+
+        "Antiques and Primitives"+
+        "Baby and Children's Essentials"+
+        "Bath/Health/Medical"+
+        "Books/Stamps/Ephemera"+
+        "Charity Auction Item"+
+        "Clothing/Shoes/Accessories"+
+        "Coins and Currency"+
+        "Collectibles (Vintage/Rare/Unique)"+
+        "Commercial and Industrial"+
+        "Computers and Networking"+
+        "Dolls and Bears"+
+        "Electronics/TVs/Cameras"+
+        "Fantasy/Gothic/Mythical"+
+        "Fine Art"+
+        "Firearms/Weaponry/Military"+
+        "Furniture"+
+        "Glass/China/Pottery"+
+        "Heavy and Farm Equipment"+
+        "Historical Artifacts"+
+        "Holiday/Sewing/Crafts"+
+        "Home Decor and Lighting"+
+        "Housewares and Small Appliances"+
+        "Jewelry and Watches"+
+        "Large Appliances"+
+        "Lawn and Garden"+
+        "Luggage"+
+        "Motor Vehicles/Collector Cars/Marine"+
+        "Music/Movies/Video Games"+
+        "Musical Instruments"+
+        "Odds and Ends (Miscellaneous)"+
+        "Office Furniture and Supplies"+
+        "Outdoors and Sporting Goods"+
+        "Pet Supplies"+
+        "Precious Stones and Metals"+
+        "Real Estate"+
+        "Soft Goods and Textiles"+
+        "Sports Memorabilia"+
+        "Storage Units"+
+        "Tools/Garage/Home Improvement"+
+        "Toys and Hobbies"+
+        "Trucks/Trailers/Utility"+
+        "Wall Art/Mirrors/Clocks"
+        
     const model = "gpt-4o"; // Ensure this is the correct model
     const message = {
         role: "user",
         content: [
             { 
                 type: "text", 
-                text: "This whole response should be 100 to 250 words and only one paragraph with no breaks. write a paragraph about the contents of each index in this array as a group" + imageDescriptions
+                text: prompt
             },
             
         ],
@@ -108,23 +169,21 @@ async function describeLot(imageDescriptions) {
         console.error('Error generating description:', error);
         throw error;
     }
-
-
 }
 
-
-
-
-
 async function generateDescription(imageURL) {
-    console.log('Image source:', imageURL);
-    const model = "gpt-4o"; // Ensure this is the correct model
+    const promt = 
+        "This whole response should be 50 to 150 words and only one paragraph with no breaks." +
+        "Write a paragraph describing what is in the image. Use vivid and descriptive language for a detailed depiction," +
+        "including any text, objects, and their arrangement. Provide context speculation in at least two sentences,"+
+        "ensuring each sentence is complete before ending."
+    const model = "gpt-4o"; 
     const message = {
         role: "user",
         content: [
             { 
                 type: "text", 
-                text: "This whole response should be 100 to 250 words and only one paragraph with no breaks. Write a paragraph describing what is in the image. Use vivid and descriptive language for a detailed depiction, including any text, objects, and their arrangement. Provide context speculation in at least two sentences, ensuring each sentence is complete before ending."
+                text: promt
             },
             { 
                 type: "image_url", 
@@ -145,7 +204,7 @@ async function generateDescription(imageURL) {
             },
             body: JSON.stringify({ 
                 model, 
-                max_tokens: 1000, 
+                max_tokens: 800, 
                 messages: [message]
             }),
         });
@@ -164,48 +223,86 @@ async function generateDescription(imageURL) {
         throw error;
     }
 }
+const templateFile = document.getElementById('templateFile').files[0];
 
+// Function to load the template Excel file
+function loadTemplateFile(file) {
+    return new Promise((resolve, reject) => {
+        if (!(file instanceof Blob)) {
+            reject(new Error("Invalid file object"));
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            resolve(workbook);
+        };
+        reader.onerror = (error) => reject(error);
+        reader.readAsArrayBuffer(file);
+    });
+}
 
-// Function to export the generated descriptions to an Excel file or a PDF document
-function exportDescriptions(descriptions) {
-    const exportOption = document.querySelector('input[name="File"]:checked').id;
-    const previewImages = document.querySelectorAll('.preview-image');
+// Function to copy formatting from template to new workbook
+function copyFormatting(templateWorkbook, newWorkbook) {
+    templateWorkbook.SheetNames.forEach(sheetName => {
+        const templateSheet = templateWorkbook.Sheets[sheetName];
+        const newSheet = newWorkbook.Sheets[sheetName] || XLSX.utils.aoa_to_sheet([[]]);
+        
+        // Copy cell styles
+        if (templateSheet['!cols']) newSheet['!cols'] = templateSheet['!cols'];
+        if (templateSheet['!rows']) newSheet['!rows'] = templateSheet['!rows'];
+        if (templateSheet['!merges']) newSheet['!merges'] = templateSheet['!merges'];
+        
+        // Copy individual cell formatting
+        Object.keys(templateSheet).forEach(cell => {
+            if (cell[0] !== '!') {
+                if (!newSheet[cell]) newSheet[cell] = {};
+                if (templateSheet[cell].s) newSheet[cell].s = templateSheet[cell].s;
+            }
+        });
+        
+        // Ensure the sheet is in the new workbook
+        if (!newWorkbook.Sheets[sheetName]) {
+            XLSX.utils.book_append_sheet(newWorkbook, newSheet, sheetName);
+        }
+    });
+}
 
+// Main function to export descriptions with formatting
+async function exportDescriptions(descriptions) {
+    const checkedInput = document.querySelector('input[name="File"]:checked');
+    const exportOption = checkedInput ? checkedInput.id : 'Excel'; // Default to 'Excel' if no option is checked
 
     if (exportOption === 'Excel') {
-        // Existing Excel export logic
-        const ws = XLSX.utils.json_to_sheet(descriptions.map((desc, index) => ({ Image: index + 1, Description: desc })), {header: ["Image", "Description"], skipHeader: true});
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Descriptions");
-        XLSX.writeFile(wb, "ImageDescriptions.xlsx");
+        try {
+            // Get the template file
+            const templateFileInput = document.getElementById('templateFile');
 
-    } else if (exportOption === 'PDF') {
-        const doc = new jspdf.jsPDF();
-        let yPosition = 10; // Initial y-position for the first text/image
-        doc.setFontSize(10); // Set the font size for the description text
-        previewImages.forEach((imageElement, index) => {
-            const imgData = imageElement.src; // Use the src attribute of the image element as the image data
-            const desc = descriptions[index]; // Get the corresponding description
+            const templateFile = templateFileInput.files[0];
 
-            // Ensure there's enough space for the current image and text block, otherwise add a new page
-            if (yPosition + 30 > doc.internal.pageSize.height) { // Adjust 60 based on your image size
-                doc.addPage();
-                yPosition = 10; // Reset y-position for the new page
-            }
+            // Load the template workbook
+            const workbook = await loadTemplateFile(templateFile);
+            
+            // Assume the first sheet is the one we want to modify
+            const sheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[sheetName];
 
-            // Adding the image
-            doc.addImage(imgData, 'JPEG', 10, yPosition, 50, 50); // Adjust dimensions as needed
+            // Prepare the data to be added
+            const data = descriptions.map((desc, index) => [index + 1, desc]);
 
-            // Adding the description text below the image
-            const textYPosition = yPosition + 55; // Adjust based on your image height
-            let lines = doc.splitTextToSize(desc, 180); // Split the description text into lines
+            // Add the descriptions to the worksheet
+            // Assuming you want to start from cell A2 (A1 might be a header)
+            XLSX.utils.sheet_add_aoa(worksheet, data, { origin: "C2" });
 
-            doc.text(lines, 10, textYPosition);
-
-            // Update yPosition for the next image and text block, adding a gap for readability
-            yPosition += 60 + (lines.length * 10); // Adjust 60 based on your image size plus gap
-        });
-
-        doc.save("ImageDescriptions.pdf");
+            // Generate Excel file in the browser
+            XLSX.writeFile(workbook, "ModifiedImageDescriptions.xlsx");
+        } catch (error) {
+            console.error("Error processing Excel file:", error);
+            alert("Error: " + error.message); // Show error to user
+        }
+    } else {
+        console.error("Unsupported export option");
+        alert("Unsupported export option");
     }
 }

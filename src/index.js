@@ -2,8 +2,8 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
-
-
+const fs = require('fs').promises;
+const XLSX = require('xlsx');
 
 function createWindow() {
     const mainWindow = new BrowserWindow({
